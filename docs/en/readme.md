@@ -280,4 +280,35 @@ fn take_and_return_ownership(s: String) -> String {
 - At any given time, you can have either one mutable reference or any number of immutable references. 任何时刻，要么有1个可变引用，要么多个不可变引用
 - References must always be valid. 具体情况具体解释，重点是 valid
 
-特殊的引用-slices
+特殊的引用 string slice 的类型是 `&str`  `&s[startIndex..endIndex]` 这个下标必须要是一个合法的 UTF-8 字符串的边界，不能是切割一个完整的 multibyte character。在 UTF-8 中，中文汉字大部分都是3个字节组成的 unicode 编码，因此中文是 multibyte character.
+
+string 的 `len()` 是字节的长度，不是字的长度。比如 `Hello` 的长度是5，因为每个英文字母都是1个字节够存，`中`的长度是3，表示这个3个字节长。
+记住 rust 用的是 UTF-8 编码格式，一个世界字符（英文中文韩文emoji）所代表的 unicode 编码，长度是不一样的，范围是 1-4 个字节。
+
+### struct
+
+struct 的 instance 整体属性都是可变的，rust 不允许声明某些可变，其他不可变。
+
+支持属性的 shorthand 缩写，以及 `..` 展开运算（注意不是`...`，和 js 不一样）
+
+tuple struct 元组结构体，只有类型，没有属性名
+
+unit-like struct 没有任何属性的结构体
+
+accessing fields of a borrowed struct instance does not move the field values, which is why you often see borrows of structs
+使用借用的结构体实例的属性时，不会发生移动，因此结构体实例的借用非常常见
+
+用 Debug 宏命令查看结构体的内容
+
+`dbg!` 宏指令 takes ownership，而 `println!` 是借用
+
+automatic referencing and dereferencing. 自动引用转换，在结构体的函数属性中体现。
+比如 `p1.distance(&p2);` 和 `(&p1).distance(&p2);` 是相等的。 通过函数的定义，rust 可以自动转换函数接受的 self 参数类型，包括
+- `&self` reading self （只读，借用）
+- `&mut self` mutating self （可改变，写操作）
+- `self` consuming self （移动，拿取所有权）
+
+结构体的函数叫做 associated functions 关联函数。有的会用到 self(实例)，有的不需要用到（类比 js 的 static，没有 this）
+
+
+
