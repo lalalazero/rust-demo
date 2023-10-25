@@ -293,7 +293,7 @@ struct 的 instance 整体属性都是可变的，rust 不允许声明某些可�
 
 tuple struct 元组结构体，只有类型，没有属性名
 
-unit-like struct 没有任何属性的结构体
+unit-like struct 没有任何属性的单元结构体
 
 accessing fields of a borrowed struct instance does not move the field values, which is why you often see borrows of structs
 使用借用的结构体实例的属性时，不会发生移动，因此结构体实例的借用非常常见

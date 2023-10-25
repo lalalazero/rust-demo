@@ -1,6 +1,9 @@
 ## String 和 &str 的区别
 
-String 内部存储的是 Unicode 字符串的 UTF8 编码，而 char 直接存的是 Unicode Scalar Value。
+String 内部存储的是 Unicode 字符串的 UTF8 编码，而 char 直接存的是 Unicode Scalar Value（除开 Surrogate 的 Unicode 字符）。
+
+一个 unicode 字符要么属于 Surrogate 范围，要么属于 scalar value，它们本质上都是 unicode 字符，code point/code position，
+只是范围不一样，而且叫法不一样。
 
 这两个的区别解释：
 
