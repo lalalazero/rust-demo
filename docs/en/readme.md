@@ -310,5 +310,89 @@ automatic referencing and dereferencing. 自动引用转换，在结构体的函
 
 结构体的函数叫做 associated functions 关联函数。有的会用到 self(实例)，有的不需要用到（类比 js 的 static，没有 this）
 
+### 枚举
+
+1. 定义
+
+枚举叫做 enumerations，简写是 enums，单数是 enum，枚举可能的值叫做 variants，单数是 variant
+
+使用关键字 enum 来定义枚举，枚举可以接受类型作为参数，枚举还可以实现方法
+
+```rust
+enum Message {
+    Quit,
+    Write(String),
+    Move(i32, i32)
+}
+
+impl Message {
+    fn call(&self) {
+        // snip
+    }
+}
+
+let message = Message::Write(String::from("hello"));
+m.call();
+```
+
+2. 内置常用枚举 `Option` 
+
+rust 中没有 null 的概念，只有 `Option<T>` 枚举，用来表示概念：一个值可能存在或者不存在
+
+`Option` 是全局的，因此无需导入，`Some` 和 `None` 也是全局的，因此无需 `Option::Some` 或者 `Option::None`
+
+```rust
+enum Option<T> {
+    None,
+    Some(T),
+}
+```
+
+为啥 `Option<T>` 比 null 好使？因为 `Option<T>` 和 `T` 是两种类型，无法直接运算两种类型的值，这样可以避免你以为的值实际运行时是 null。
+因为在编译器就会检查是否 `Option<T>` 和 `T` 运算的情况，有就报错，这样显式地让用户去检查是否可能存在有 null 和 T 做运算的情况，有的话要转成 T 和 T 运算，或者单独为可能是 null 做处理，这样就可以尽最大可能避免运行时抛错。
+
+3. 模式匹配 pattern match
+
+使用关键字 `match` 后面跟着的可以是 literal, variable 和 wildcard。
+
+`{}` 括起来的叫做 `arm`，包含枚举值和对应的处理。`arm` 会按照顺序挨个比较，一旦匹配到了，不会执行后面的。
+
+ps: rust 果然取名都是奇奇怪怪的，这个类比 if 的分支 branch，它非要叫 arm
+
+```rust
+match coin { 
+        Coin::Penny => 1, // 第一个 arm
+        Coin::Nickel => 5, // 第二个 arm
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+        Coin::Other => { // 可以写语句
+            println!("unknown type");
+            -1
+        }
+    }
+```
+
+有绑定值的枚举，比如枚举定义了参数，`arm` 可以把参数解出来
+
+```rust
+Coin::Quarter2(state) => {
+    println!("State quarter from {:?}", state);
+    25
+}
+```
+
+`match` 和 `Option` 的组合经常会用到，学！
+
+`arm` 需要完全列举出所有的枚举值，exhaustive。
+
+catch-all 和 _ 占位符，`_` 用来占位，表示所有的枚举都可以。
+
+4. `if let` 更省事的平替
+
+`if let` 语法糖是对【如果满足某一个条件则做什么，否则忽略】简化，让你少写点 match arm 代码
+
+还可以 `if let else` 就是【如果满足某一个条件则做什么，否则做什么】
+
+注意重点都是只有**一个**满足的条件。
 
 
