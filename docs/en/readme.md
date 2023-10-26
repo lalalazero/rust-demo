@@ -385,7 +385,7 @@ Coin::Quarter2(state) => {
 
 `arm` 需要完全列举出所有的枚举值，exhaustive。
 
-catch-all 和 _ 占位符，`_` 用来占位，表示所有的枚举都可以。
+catch-all 和 _ 占位符，`_` 用来占位，表示所有的枚举值都可以。用 `_` 占位 rust 编译器就不会报警告没有使用的变量。
 
 4. `if let` 更省事的平替
 
@@ -395,4 +395,141 @@ catch-all 和 _ 占位符，`_` 用来占位，表示所有的枚举都可以。
 
 注意重点都是只有**一个**满足的条件。
 
+### Packages/Crates/Modules
 
+- package: A cargo feature that lets you build, test, and share crates.
+- crate: A tree of modules that produces a library or executable
+- module 和 use: let you control the organization, scope and privacy of paths
+- path: a way of naming an item, such as a struct, function, or module
+
+简单的理解上面的东西
+- package: cargo 的一个能力，用来 build, test, share crates
+- crate: 一个 module tree（由一个或者多个 .rs 文件组成），最终产出 library 或者 executable
+- module 和 use: 控制 org, scope 和 privacy of paths
+- path: 命名或者引用 item 的方式，比如 struct, function 或者 module 的命名
+
+1. package 和 crate
+
+crate 是啥？可以简单理解为一个 .rs 文件或者多个 .rs 组成的程序。
+
+比如运行 `rustc abc.rs` 编译，这个 `abc.rs` 就是一个 crate。
+
+crate 分为2种，分别是 binary crate, library crate。前者是可执行的程序，必须包含一个 `main` 方法，后者不包含 `main` 方法，
+也不编译成 executable，不能运行，可以当做依赖对外提供作用。
+
+通常单独说的 crate 指的是 library crate 或者 library，they're interchangeable.
+
+crate root 是编译的起点，默认是 `src/main.rs`。
+
+如果是 library crate，默认是 `src/lib.rs`。
+
+如果是 binary crate，默认放在 `src/bin`目录下，每个文件是单独的 binary crate。
+
+`cargo run` 运行的时候其实就是先把 crate root 传递给 rustc 编译，然后再执行。
+
+package 包含多个 crate，提供一些功能。它包含 `Cargo.toml` 文件描述怎么 build 相关的 crate。
+
+一个 package 可以包含多个 binary crate，但是至多一个 library crate。
+
+一个 package 至少都需要包含一个 crate，不管是 binary 还是 library。
+
+
+2. module
+
+- path 
+- use 关键字
+- pub 关键字
+- as 关键字
+- `*` glob 运算符
+
+crate 包含 modules，一个或者多个 module（定义在一个或者多个 .rs 文件里） 组成 crate 的 module tree。
+
+一个 module 里面可以包含很多东西，比如 struct 结构体，enum 枚举，constant 常量，trait 特征，function 函数，和 module 模块。
+
+`pub` 关键字用来表示公开可见的。`pub mod xxx` 修饰 module 是公开的，但是 module 内的东西默认仍旧是 private 的。换言之，修饰 module 的 
+pub 没有太大的作用。默认情况下，module 内部的东西都是私有的，即便声明了 module 是 pub 公开的，但是也没有太大用处，module 内部的东西还得再声明 pub 才能对外使用。
+
+父 module 无法使用子 module 的 private 东西，但是反过来可以。
+
+
+- 注意区分 enum 枚举的公开
+pub 修饰的 module/struct，里面的东西还是 private 的，
+pub 修饰的 enum，所有的枚举都会是 public 的。（因为这样更方便，合理）
+
+这是一个 module tree ，可以看到 root 起点叫做 crate，定义如何引用 module 内的东西叫做 path
+```text
+crate
+ └── front_of_house
+     ├── hosting
+     │   ├── add_to_waitlist
+     │   └── seat_at_table
+     └── serving
+         ├── take_order
+         ├── serve_order
+         └── take_payment
+```
+
+`cargo new restaurant --lib` 创建 library crate
+
+- rust 编译器的 module 查找逻辑
+
+1. 从 crate root 开始
+2. 声明 module，rust 会按照如下的条件查找这个 module
+   1. inline：`mod garden` 声明的后面有没有接具体的定义 `{}`
+   2. `src/garden.rs` 文件
+   3. `src/garden/mod.rs` 文件
+3. 声明 submodule，在非 crate root 的文件里，你可以定义 submodule，比如定义在 `src/vegetables.rs` 里面声明了一个 `vegetables` module
+   1. inline: `mod vegetables` 声明的后面有没有接具体的定义 `{}`
+   2. `src/garden/vegetables.rs` 文件
+   3. `src/garden/vegetables/mod.rs` 文件
+
+可以看到，module tree 非常类似文件目录树
+
+3. path
+
+绝对路径
+- 如果是外部 crate，以具体的外部 crate name 开头
+- 如果是内部 crate，以 `crate` 开头
+
+相对路径
+- 使用 `self` 或者 `super` 等关键字
+- 或者是当前 module 的 identifier 标志符
+
+路径的分隔符都是 `::`
+
+4. use
+
+可以 use aaa::bbb::ccc 然后用的时候 ccc.dd() 
+
+也可以 use aaa:bbb:ccc::dd 然后用的时候直接 dd()，更多人习惯这种
+
+但是 use 进来的东西不能同名，否则编译通不过，因此需要 use xxx as yyy 取别名
+
+- `re-exporting` 再导出
+
+`use crate::front_of_house::hosting;` 这是导入 hosting
+
+`pub use crate::front_of_house::hosting;` 这是导入再导出 hosting
+
+- 使用外部的 package
+
+在 `Cargo.toml` 中声明依赖，然后 use 进代码中使用
+
+- 导入同个包的多个模块
+
+可以写很多个 use 比如 
+
+use A::B::B1;
+use A::B::B2;
+use A::B::B3;
+
+也可以用嵌套的方式导入，比如
+
+use A::{B::B1, B2, B3};
+
+- 用通配符 * 导入
+
+use A::B::*;
+
+
+在 module tree 上只允许一次声明 `mod AA;`，其他地方不需要再次声明，直接用就行了。
