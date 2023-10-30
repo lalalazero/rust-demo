@@ -533,3 +533,67 @@ use A::B::*;
 
 
 在 module tree 上只允许一次声明 `mod AA;`，其他地方不需要再次声明，直接用就行了。
+
+## common collections 常用集合
+
+the data these collections point to is stored on the heap 集合存的数据是在堆上
+
+认识 vector, string, hash map 分别适用于存什么数据结构
+
+- vector
+
+vector 是啥？allow you to store more than one value in a single data structure that **puts all the values next to each other in memory**
+
+1. 在内存中挨个存放数据值
+2. 同种类型的数据
+
+`vec!` macro ，编译器提供的快速创建 vector 的宏指令。往数据里添加或者删除删减，要添加 `mut` 修饰符。
+
+为什么这个例子会报错？
+```rust
+fn cant_have_mut_and_immut_reference_same_time() {
+    let mut v = vec![1, 2, 3, 4, 5];
+    let first = &v[0]; // immutable
+
+    v.push(6);
+
+    println!("the first element is {first}"); // within same scope, exist both mut and immut reference;
+}
+```
+第一个元素是引用的 `&v[0]`，是不可变的。而后面 `v.push(6)` 对 vector 做了新的操作，后面的 `println` 又引用了旧的第一个元素的引用。
+为什么会报错？vector 存的内容是在堆上，长度可变的，当 push 新增时如果 vector 已有分配的内存空间不够，那么会重新分配更大的内存空间，把旧的元素一个个拷贝过去存，意味着 first 指向的是旧的内存地址（是失效的），rust 禁止这种行为。
+
+数组的遍历用 for 循环，遍历过程中不能对数组进行长度修改的操作（比如新增或者删除元素）
+
+`*` dereference operator 解引用运算符
+
+怎么用数组存多种类型的值？用枚举
+
+- String
+
+rust 中的 String 本质是什么？strings are implemented as a collection of bytes, plus some methods to provide useful functionality when those bytes are interpreted as text. 本质上是 bytes（字节） 的集合。
+
+每个实现了 `Display` trait 的类型都有一个 `to_string()` 方法
+
+对 String 的操作
+
+1. `to_string` 把一个字符串字面量变成 String
+2. `push_str` 和 `push` 方法
+3. `+` 操作符号
+需要注意的是 `+` 对应的 `add` 方法的签名是 `fn add(self, s: &str) -> String {}` ，拿到 self 的 ownership 然后把 s 追加上去，再返回 self 的结果，而不是（分配新的内存空间，拷贝 self 和 s） 
+
+rust 会对 String 和 &str 做一个强转， `deref coerce`，如果参数实际上是 `String`, rust 会强转为 `&str[..]`
+4. `format!` 连接多个字符串操作，类似 js 中的模版字符串，而且不会发生 move
+5. String 的索引操作。记住 String 存的是 bytes，因此索引要针对 bytes boundary，否则就是无效的索引。
+
+标准库中的 String 本质上是一个 wrapper over a `Vec<u8>`，对于 ascii 字符，1 byte 就够存单个字符了，但是对于其他的语言不是，比如中文通常一个中文字都是 3 bytes 存的。
+
+一个 unicode scalar value(简单理解为 unicode 字符)根据不同的编码规则 (UTF-8,UTF-16,UTF-32)，会用1-4个字节来存储。
+
+- hash maps 
+
+类型签名 `HashMap<K, V>`，对应其他语言中的 hash, map, object, hash table, dictionary 等。
+
+对于简单的类型，添加到 hashmap 会自动 copy 值，对于复杂的类型比如 String，添加执行的是 move 动作，取得 ownership
+
+默认的 hashing function 是 siphash，如果需要实现自己的方法，参见 BuildHasher trait
