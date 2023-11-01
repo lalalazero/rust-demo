@@ -630,3 +630,101 @@ enum Result<T, E> {
 `unwrap`, `unwrap_or_else` 和 `expect` 相对于 match ErrorKind::NotFound 更简洁，不啰嗦
 
 错误的冒泡 propagating
+
+## generic 泛型
+
+在 function, enum, struct 中定义泛型
+
+泛型不会使程序变慢，rust 编译器在 compile 期间会把泛型转化为具体的类型，这个过程叫做 monomorphization
+
+比如下面的代码
+```rust
+let integer = Some(5);
+let float = Some(5.0);
+```
+rust compiler 会编译成这样的，这样 runtime 直接执行，不会有性能上的损失
+```rust
+enum Option_i32 {
+    Some(i32),
+    None,
+}
+
+enum Option_f64 {
+    Some(f64),
+    None,
+}
+
+fn main() {
+    let integer = Option_i32::Some(5);
+    let float = Option_f64::Some(5.0);
+}
+```
+
+## traits
+
+参见其他语言的 interface，用来定义共享的行为
+
+trait 就是组合，比如定义一组公共的方法的接口集合，归类为 xxx trait，通过实现这些接口，就具备了这些方法的能力。
+
+实现 trait 的 struct
+```rust
+struct Tweet {
+    // 省略
+}
+
+impl SummaryTrait for Tweet {
+    // 接口方法的具体实现
+}
+```
+
+crate 只能实现 local trait，这个限制叫做 coherence，更明确的叫做 the orphan rule. 为什么要这么限制？不限制的话 two crates 可以对相同 trait
+有各自的实现（签名都一样），这样 rust 编译器不知道应该用哪个实现。有了这个限制，你的 crate 对 trait 的实现不会影响别人的实现，而别人的实现
+同样不会影响你。
+
+trait 可以有 default 实现，如果没有实现，需要组合了这个 trait 的 struct 来实现。
+
+trait 当做参数， `impl xxxtrait` 和下面的泛型写法是等价的，完整的写法叫做 trait bound
+```rust
+pub fn notify(item: &impl SummaryTrait) {
+    // 省略
+}
+
+pub fn notify<T: SummaryTrait>(item: &T) {
+    // 省略
+}
+```
+区别在于对类型的限制，`impl` 后接的类型可以是不同的，只要他们都实现了 `SummaryTrait` 就行。而泛型的写法严格限制了 item1 和 item2 需要是同种类型，并且都实现了 `SummaryTrait` 接口
+```rust
+pub fn notifyAll(item1: &impl SummaryTrait, item2: &impl SummaryTrait) {
+    // 省略
+}
+pub fn notifyAll<T: Summary>(item1: &T, item2: &T) {
+    // 省略
+}
+```
+trait 做参数时，用 `+` 运算符表示需要实现多个 trait
+```rust
+pub fn notify_multi(item: &(impl Summary + Display)) {} // item 需要都实现 summary 和 display trait
+pub fn notify_multi_2<T: Summary + Display>(item: &T) {} // 两个 trait bounds，分别是 summary 和 display
+// }
+```
+
+有条件的实现 trait 叫做 blanket implementations，在 rust 中用的很多
+```rust
+// 这是 rust 标准库 standard library 对 ToString trait 的实现
+// 这个代码规定为 T 类型实现 ToString trait 需要 T 类型先实现 Display trait
+// 因此任意 T 都可以调用 to_string 方法，只要 T 实现了 Display trait
+impl<T: Display> ToString for T { 
+    // --snip--
+}
+```
+
+
+### trait 总结
+花样是真的多
+1. `impl trait` 语法糖
+2. 用泛型来写 trait bound
+3. 多个 trait bounds 用 `+` 连接
+4. 泛型和`+` 号表达不明确的地方可以用 `where` 分支
+5. 表示函数返回值是实现了 trait 的类型（限制：只能当返回值是单个类型时）
+6. 使用 trait bound 来有条件的实现 trait
