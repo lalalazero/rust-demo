@@ -597,3 +597,36 @@ rust 会对 String 和 &str 做一个强转， `deref coerce`，如果参数实�
 对于简单的类型，添加到 hashmap 会自动 copy 值，对于复杂的类型比如 String，添加执行的是 move 动作，取得 ownership
 
 默认的 hashing function 是 siphash，如果需要实现自己的方法，参见 BuildHasher trait
+
+## Error Handling 错误处理
+
+错误分为2类 recoverable 和 unrecoverable ， rust 没有 exception 的概念，对于前者的错误对应类型是 `Result<T, E>`，对于后者有 `panic!` macro 宏指令
+
+怎么会 panic ？
+1. 做一些会报错的操作，比如运行时访问数组越位或者除以0这种
+2. 调用 `panic!` 宏
+
+当程序 panic 的时候会有一些 unwind 和 cleanup 的活，这些相对来说是比较耗时的工作，如果用户希望程序立即退出，把残余交给操作系统来清理，可以设置
+
+```rust
+// Cargo.toml 文件
+[profile.release]
+panic = 'abort'
+```
+
+设置环境变量查看 panic 信息  `RUST_BACKTRACE=1 cargo run`
+
+`cargo run --release` 区别于开发模式，默认的 `cargo build`，`cargo run` 就是开启 debug symbol 标记
+
+什么是 recoverable 错误？比如当程序尝试读取一个路径不存在的文件，你可能不希望这个程序直接退出，而是提示报错文件不存在就够了。
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+`unwrap`, `unwrap_or_else` 和 `expect` 相对于 match ErrorKind::NotFound 更简洁，不啰嗦
+
+错误的冒泡 propagating
