@@ -865,3 +865,84 @@ where
 - generic lifetime parameter
 - lifetime annotation
 - lifetime elision rules
+
+## 测试
+
+#### 基础介绍
+
+
+一些 attributes
+
+- 用 `#[test]` attribute 来标记测试方法
+- `#[should_panic]` attribute 用来标记会抛异常的代码，但是这个不能用到返回值是 `Result<T, E>` 的类型上，要使用 `assert!(value.is_err())`
+- `#[ignore]` 标记跳过测试方法
+
+测试宏 macro
+
+- assert_eq!
+- assert!
+- assert_ne!
+
+查看命令行帮助
+
+- `cargo test --help` 查看帮助
+- `cargo test -- --help` 查看 -- 之后能接什么的帮助
+
+run tests in parallel 或者 consecutively 
+
+默认情况下，tests 都是不相互依赖的，因此可以 in parallel 并行的跑
+
+常见选项
+
+- 设置 `cargo test -- --test-threads=1` 只起一个进程跑，挨个执行测试。
+什么情况下会需要挨个跑测试？比如测试之间有共享同一个文件，输出测试结果时，如果并行的跑，文件内容会被覆盖。
+
+- `--show-output`，默认情况下正常输出不会打印出来，需要设置这个
+
+指定跑那些测试
+
+- `cargo test xxFn` xxFn 是测试方法的名字，只跑这一个测试
+- `cargo test add` 所有 fn 包含了 add 字符串的测试都会跑
+- `cargo test -- --ignored` 只跑标记忽略的测试
+- `cargo test -- --include-ignored` 跑所有测试
+
+#### 单元测试和集成测试
+
+单元测试：Unit tests are small and more focused, testing one module in isolation at a time, and can test private interfaces
+
+特点：小，更聚焦单个函数内容，通常涉及单个 module，还可以测试私有接口
+
+集成测试：Integration tests are entirely external to your library and use your code in the same way any other external code would, using only the public interface and potentially exercising multiple modules per test.
+
+特点：大，像真实的外部用户或者代码那样访问你的代码，只会测试公开的接口，通常涉及多个 module
+
+单元测试惯例是每个测试文件都包含一个叫做 `tests` 的 module ，测试方法都写在这个 module 里，同时加上 `cfg(test)` 模块注解
+
+`#[cfg(test)]` 注解的意思是告诉 rust 编译器只有在运行 `cargo test` 时才编译和运行这个代码。
+
+测试私有函数和其他的没有太大的区别。
+
+集成测试都在 `tests` 目录下，这也是一个特殊的目录，只有在运行 `cargo test` 编译器才会编译和执行。这个目录下每个 rust 文件都是一个单独的
+crate，需要用的东西都要 `use` 各自引用进来。
+
+`cargo test` 控制台的输出分 unit test, integration test, doc test 三个 section，如果某个 section 下有任一 test 跑失败了，接下来的 section 就不会跑测试了。比如 unit test 失败了，integration test 就没有跑的必要了。
+
+`cargo test --test integration_test` 指定要跑的 integration test 文件名字
+
+因为 `tests` 目录下每个 rust 文件都是单独的 crate，所以有一些初始化的工作会重复在每个 crate 里面做，这样会很烦。假设有一个 common 的 setup 方法，帮助做 setup 的工作，那么就会方便很多。
+
+假设创建 `tests/common.rs` 文件，rust 会把它单独当做一个叫做 `common` 的集成测试文件来运行。因此我们需要弄成子目录的形式，`tests/common/mod.rs`，这样 rust 就不会编译它。然后在 integration test 文件里引用它：
+```rust
+// integration_test_3.rs
+
+mod common;
+
+#[test]
+fn it_works() {
+    common::setup();
+    // test code snip...
+}
+```
+通过 `cargo test --test integration_test_3 -- --show-output` 可以检查测试跑的输出内容，会发现 setup 有被正确执行。
+
+集成测试只能给有 `src/lib.rs` 也就是 library crate 写，如果是 binary crate 没法写集成测试。因为不存在外部代码使用你的代码。
