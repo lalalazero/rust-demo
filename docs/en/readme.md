@@ -728,3 +728,140 @@ impl<T: Display> ToString for T {
 4. 泛型和`+` 号表达不明确的地方可以用 `where` 分支
 5. 表示函数返回值是实现了 trait 的类型（限制：只能当返回值是单个类型时）
 6. 使用 trait bound 来有条件的实现 trait
+
+## lifetime
+
+lifetime 是啥？another kind of generic. 也是一种泛型。它不是用来检查类型的，而是用来检查 reference （引用）的。
+
+每个 reference 都有一个 lifetime. 也就是 the scope for which that reference is valid. （ lifetime 就是引用有效的范围）
+
+通常情况下， lifetime 是 implicit and inferred（隐式的，可推断的）。类比类型推断，只有在可能有多个类型的时候需要 annotate type（注解类型），同理可得，当 reference 的 lifetime 可能有多个方式时，我们需要 annotate lifetime.
+
+为啥要有 lifetime？main aim of it is to prevent **dangling reference**，这个就是程序引用了不正确的数据。a program to reference data other than the data it’s intended to reference.
+
+- borrow checker 借用检查器
+用来检查所有的 borrows 是否是有效的
+
+- generic lifetimes in functions 函数中的泛型 lifetime
+
+lifetime annoations 生命周期注释
+
+用来干啥？
+lifetime annoations describe the relationships of the lifetimes of multiple references to each other without affecting the lifetimes.
+
+语法长这样
+```rust
+&i32        // a reference
+&'a i32     // a reference with an explicit lifetime
+&'a mut i32 // a mutable reference with an explicit lifetime
+```
+单独一个 lifetime annotation 没有太大的意义，因为这个注解主要是用来区分 multiple references 之间的 lifetime 关系的
+
+那些地方会用到？
+- 函数签名中的 lifetime
+- struct 中的 lifetime
+- lifetime 可以省略
+- impl method 中的 lifetime
+- 'static lifetime
+
+lifetime 是可以省略的，lifetime elision rules 总结了一些特定的 pattern，无需开发者声明 lifetime，编译器也能正确计算 lifetime
+
+首先规定了 input/output lifetimes 定义：
+- input lifetimes 是在函数或者 struct/enum method 参数上的 lifetime 注解
+- output lifetimes 是在返回值上的 lifetime 注解
+
+然后 rust 编译器自动推算 lifetime 的 rule 有3条：
+1. 给所有**是 reference** 的参数分配一个 lifetime，比如一个函数具有一个参数，那么分配 `fn foo<'a>(x: &'a i32);`，如果有两个不同的参数，分配`fn foo<'a, 'b>(x: &'a i32, y: &'b i32);`
+2. 如果只有一个 input lifetime 参数，这个 lifetime 同样分配给所有 output lifetime 参数，比如 `fn foo<'a>(x: &'a i32) -> &'a i32`
+3. 如果有 `&self` 或者 `&mut self` 说明这是一个 method，那么给所有 output lifetime 参数加上 `self` lifetime
+
+举个例子，如下的代码
+```rust
+fn first_word(s: &str) -> &str {
+    &s[..]
+}
+```
+rust 编译器先运用第一条 rule，转换为
+```rust
+fn first_word<'a>(s: &'a str) -> &str {
+    &s[..]
+}
+```
+然后运用第二条 rule,转换为
+```rust
+fn first_word<'a>(s: &'a str) -> &'a str {
+    &s[..]
+}
+```
+经过两步转换，所有**是 reference**的参数都带上了 lifetime，所以开发者不用手动声明了。
+
+再来看另外一个例子，如下代码
+```rust
+fn longest(x: &str, y: &str) -> &str {
+    // snip 省略
+}
+```
+rust 编译器先运用第一条 rule，转换为
+```rust
+fn longest<'a, 'b>(x: &'a str, y: &'b str) -> &str {
+    // snip 省略
+}
+```
+接下来，第二条第三条 rule 都不适用，因此 output lifetime 加不了，也就是返回值确定不了 lifetime，因此 rust 编译器就会报错。
+需要开发者手动声明返回值的 lifetime，于是根据这个函数的功能，它的 lifetime 声明是这样
+```rust
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    // snip 省略
+}
+```
+
+impl method 中的 lifetime 注解，如下代码
+```rust
+impl<'a> ImportantExcerpt<'a> {
+    fn level(&self) -> i32 {
+        3
+    }
+
+    fn announce_and_return_part(&self, announcement: &str) -> &str {
+        println!("Attention please: {}", announcement);
+        self.part
+    }
+}
+```
+对于 method level 可以根据第一条 rule 来分配 lifetime，而且只有这个参数 `&self` 是引用类型，没有其他的需要声明 lifetime 的 reference 了。
+
+对于 method announce_and_return_part 首先根据第一条 rule，两个参数有各自的 lifetime，分别是 'a 和 'b，然后根据第三条 rule，返回值的 lifetime 保持和 self 的一致，至此所有的 reference 都已经声明了 lifetime，编译器不会报错。
+
+最后再来看'static lifetime ，它比较特殊，意思是对应的 reference 可以存活于整场 program 运行期间。所有的 string literals 都有 'static lifetime 如下所示
+```rust
+let s: &'static str = "I have a static lifetime";
+```
+为啥 string literals 有这个特性？因为它是直接硬编码到程序编译后的 binary 中，所以一直都是可以访问的。
+
+大杂烩：泛型，trait bound，和 lifetime 写在一起
+```rust
+use std::fmt::Display;
+
+fn longest_with_an_announcement<'a, T>(
+    x: &'a str,
+    y: &'a str,
+    ann: T,
+) -> &'a str
+where
+    T: Display,
+{
+    println!("Announcement! {}", ann);
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
+```
+
+总结关于 trait 有哪些知识：
+- trait
+- trait bound
+- generic lifetime parameter
+- lifetime annotation
+- lifetime elision rules
